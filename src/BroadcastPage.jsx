@@ -13,7 +13,11 @@ import {
   Alert,
 } from '@mui/material';
 import { useBus } from './context/BusContext';
-import { DEFAULT_COORDINATES, SIMULATION_STEP, COORDINATE_VARIATION } from './constants';
+
+// Inline defaults moved from removed constants file
+const DEFAULT_COORDINATES = { latitude: 17.43065300129256, longitude: 78.53042705991402 };
+const COORDINATE_VARIATION = 0.02;
+const SIMULATION_STEP = 0.001;
 
 const BroadcastPage = () => {
   const { isBroadcasting, busDetails, error: contextError, actions } = useBus();
@@ -29,6 +33,8 @@ const BroadcastPage = () => {
   const watchIdRef = useRef(null);
   const simulationIntervalIdRef = useRef(null);
   const locationRef = useRef(null); // Ref to store latest location
+  const manuallyStoppedRef = useRef(false); // prevent auto-restart after manual stop
+  const lastSentRef = useRef(0); // throttle updates (ms)
 
   // Clear any local errors when context error changes
   useEffect(() => {
@@ -43,6 +49,33 @@ const BroadcastPage = () => {
       setLocalSimulate(busDetails.simulateMovement);
     }
   }, [busDetails, isBroadcasting]);
+
+  // Attempt to stop broadcasting when the page is closed or hidden so the
+  // user's document is removed promptly. This is best-effort since
+  // asynchronous Firestore calls may not complete during unload.
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      manuallyStoppedRef.current = true;
+      clearWatchers();
+      try {
+        // fire-and-forget; may not complete but increases chance of deletion
+        actions.stopBroadcasting();
+      } catch (e) {
+        console.debug('stopBroadcasting failed during unload', e);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') handleBeforeUnload();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [actions]);
 
   const validateInputs = () => {
     if (!localBusNo.trim() || !localDriverName.trim()) {
@@ -66,18 +99,34 @@ const BroadcastPage = () => {
 
   const handleLocationUpdate = useCallback(
     (position) => {
+      // If the user manually stopped broadcasting, ignore any incoming
+      // location updates to avoid re-starting broadcasting unexpectedly.
+      if (manuallyStoppedRef.current) return;
+
       const { latitude, longitude } = position.coords;
       const newLocation = { latitude, longitude };
       locationRef.current = newLocation;
 
       // Check if this is the *first* update to start broadcasting
       if (!isBroadcasting) {
-        actions.startBroadcasting(newLocation);
+        // Pass current local details to avoid a race where context's busDetails
+        // may not have updated yet when the first location arrives.
+        actions.startBroadcasting(newLocation, {
+          busNo: localBusNo,
+          driverName: localDriverName,
+          simulateMovement: localSimulate,
+        });
       } else {
-        actions.updateLocation(newLocation);
+        // Throttle frequent updates to ~500ms to reduce Firestore write volume
+        // but give a snappier movement experience on listeners.
+        const now = Date.now();
+        if (now - lastSentRef.current >= 500) {
+          lastSentRef.current = now;
+          actions.updateLocation(newLocation);
+        }
       }
     },
-    [actions, isBroadcasting]
+    [actions, isBroadcasting, localBusNo, localDriverName, localSimulate]
   );
 
   const handleLocationError = (err) => {
@@ -90,36 +139,42 @@ const BroadcastPage = () => {
 
   const startSimulation = () => {
     let { latitude, longitude } = DEFAULT_COORDINATES;
-    
+
     // Add initial random variation
     latitude += (Math.random() * COORDINATE_VARIATION - COORDINATE_VARIATION / 2);
     longitude += (Math.random() * COORDINATE_VARIATION - COORDINATE_VARIATION / 2);
-    
+
     const sendSimulatedUpdate = () => {
-        latitude += (Math.random() - 0.5) * SIMULATION_STEP * 2;
-        longitude += (Math.random() - 0.5) * SIMULATION_STEP * 2;
-        handleLocationUpdate({ coords: { latitude, longitude } });
+      latitude += (Math.random() - 0.5) * SIMULATION_STEP * 2;
+      longitude += (Math.random() - 0.5) * SIMULATION_STEP * 2;
+      handleLocationUpdate({ coords: { latitude, longitude } });
     };
-    
-    // Send first update immediately
-    sendSimulatedUpdate();
-    
-    // Start interval
-    simulationIntervalIdRef.current = setInterval(sendSimulatedUpdate, 3000);
+
+    // Send first update and start interval only if user hasn't manually stopped
+    if (!manuallyStoppedRef.current) {
+      sendSimulatedUpdate();
+      simulationIntervalIdRef.current = setInterval(sendSimulatedUpdate, 3000);
+    }
   };
 
   const startRealGPS = () => {
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      handleLocationUpdate,
-      handleLocationError,
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
+    // Only start watching if user hasn't manually stopped broadcasting
+    if (!manuallyStoppedRef.current) {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        handleLocationUpdate,
+        handleLocationError,
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    }
   };
 
   const handleStart = () => {
     if (!validateInputs()) return;
     setIsProcessing(true);
     setLocalError(null);
+
+    // Clear manual-stop flag so location updates can trigger broadcasting again
+    manuallyStoppedRef.current = false;
 
     // Update context/localStorage with latest preferences
     actions.updateBusDetails({
@@ -145,6 +200,9 @@ const BroadcastPage = () => {
 
   const handleStop = async () => {
     setIsProcessing(true);
+    // Mark that the user manually stopped broadcasting to avoid an immediate
+    // re-start from any in-flight location callbacks or intervals.
+    manuallyStoppedRef.current = true;
     clearWatchers();
     await actions.stopBroadcasting();
     setIsProcessing(false);
@@ -191,17 +249,7 @@ const BroadcastPage = () => {
                 {validationError}
               </Typography>
             )}
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={localSimulate}
-                  onChange={(e) => setLocalSimulate(e.target.checked)}
-                  disabled={isBroadcasting}
-                />
-              }
-              label="Simulate Movement"
-              sx={{ mt: 2 }}
-            />
+            {/* Simulate Movement UI removed — simulation remains available internally but no public toggle */}
             <Box sx={{ my: 2, position: 'relative' }}>
               <Button
                 variant="contained"
@@ -235,23 +283,7 @@ const BroadcastPage = () => {
                 />
               )}
             </Box>
-            {isBroadcasting && (
-              <Box mt={2} p={2} sx={{
-                background: "linear-gradient(135deg, rgba(255, 0, 0, 0.1) 0%, rgba(0, 0, 255, 0.1) 100%)",
-                border: "1px solid rgba(255, 255, 255, 0.3)",
-                borderRadius: 2
-              }}>
-                <Typography variant="body2">
-                  {localSimulate ? (
-                    <>
-                      <strong>Simulation Active</strong> - Moving randomly around default location
-                    </>
-                  ) : (
-                    "Your real location is being shared"
-                  )}
-                </Typography>
-              </Box>
-            )}
+            {/* Status panel removed to hide simulation toggle and avoid confusion. */}
           </Box>
         </Paper>
       </Container>
