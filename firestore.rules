@@ -1,0 +1,17 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // The 'locations' collection
+    match /locations/{userId} {
+      // Anyone can read or list the bus locations
+      allow list, read: if true;
+      
+      // Only an authenticated user can create, update, or delete
+      // their *own* location document.
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+
