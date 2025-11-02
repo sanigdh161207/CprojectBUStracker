@@ -43,13 +43,6 @@ describe('BroadcastPage', () => {
     useBus.mockReturnValue(mockUseBusReturn);
   });
 
-  afterEach(() => {
-    // Ensure timers are restored if a test uses fake timers
-    try {
-      vi.useRealTimers();
-    } catch (e) { }
-  });
-
   it('renders and validates empty fields', async () => {
     render(
       <BusProvider>
@@ -134,7 +127,5 @@ describe('BroadcastPage', () => {
     expect(screen.getByLabelText('Bus Number')).toBeDisabled();
     expect(screen.getByLabelText('Driver Name')).toBeDisabled();
   });
-
-
 });
 

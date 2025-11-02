@@ -88,28 +88,21 @@ export const BusProvider = ({ children }) => {
   }, []);
 
   // 5. Broadcasting Actions
-  // Accept optional overrideDetails to avoid races when UI updates preferences
   const startBroadcasting = useCallback(
-    async (location, overrideDetails) => {
+    async (location) => {
+      if (!userId) {
+        setError('User not authenticated. Cannot start broadcasting.');
+        return;
+      }
+      const locationData = {
+        ...busDetails,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        timestamp: serverTimestamp(),
+        isSimulated: busDetails.simulateMovement,
+      };
       try {
-        // Ensure we have an authenticated user id before writing.
-        let uid = userId;
-        if (!uid) {
-          const { user } = await signInAnonymously(auth);
-          uid = user.uid;
-          setUserId(uid);
-        }
-
-        const detailsToUse = overrideDetails || busDetails;
-        const locationData = {
-          ...detailsToUse,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          timestamp: serverTimestamp(),
-          isSimulated: detailsToUse.simulateMovement,
-        };
-
-        await setDoc(doc(database, 'locations', uid), locationData);
+        await setDoc(doc(database, 'locations', userId), locationData);
       } catch (err) {
         setError(`Failed to start broadcasting: ${err.message}`);
       }
@@ -141,22 +134,9 @@ export const BusProvider = ({ children }) => {
   );
 
   const stopBroadcasting = useCallback(async () => {
+    if (!userId) return;
     try {
-      // Prefer the live authenticated user id if available to avoid relying solely on state.
-      let uid = auth?.currentUser?.uid || userId;
-      if (!uid) {
-        // If still no uid, try anonymous sign-in so we can attempt deletion (may fail if not owner).
-        const { user } = await signInAnonymously(auth);
-        uid = user.uid;
-        setUserId(uid);
-      }
-
-      await deleteDoc(doc(database, 'locations', uid));
-      // Optimistically update local broadcasting state so UI can respond immediately.
-      setIsBroadcasting(false);
-      // If we deleted the document for our uid, clear local userId so future starts re-auth.
-      // (Keep a local sign-in session but clear the stored broadcasting flag)
-      // Note: we don't sign out the auth session here because it may be reused.
+      await deleteDoc(doc(database, 'locations', userId));
     } catch (err) {
       setError(`Failed to stop broadcasting: ${err.message}`);
     }
