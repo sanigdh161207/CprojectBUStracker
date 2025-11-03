@@ -5,7 +5,6 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import BroadcastPage from './BroadcastPage';
 import MapViewPage from './MapViewPage';
-import LocationsListener from './LocationsListener';
 import NavBar from './NavBar';
 import ErrorBoundary from './ErrorBoundary';
 import { BusProvider } from './context/BusContext';
@@ -27,7 +26,6 @@ export default function App() {
             <Routes>
               <Route path="/" element={<BroadcastPage />} />
               <Route path="/map" element={<MapViewPage />} />
-              <Route path="/listener" element={<LocationsListener />} />
             </Routes>
           </Router>
         </BusProvider>

@@ -23,9 +23,7 @@ export default function NavBar() {
         <Button color="inherit" component={RouterLink} to="/map" startIcon={<Map />}>
           Map View
         </Button>
-        <Button color="inherit" component={RouterLink} to="/listener" startIcon={<Visibility />}>
-          Bus List
-        </Button>
+
       </Toolbar>
     </AppBar>
   );
