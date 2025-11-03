@@ -211,9 +211,9 @@ const BroadcastPage = () => {
   return (
     <Box
       sx={{
-        p: 3,
+        p: { xs: 2, md: 3 },
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #ff6b6b 0%, #4d79ff 100%)",
+        background: "#f5f5f5",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -221,7 +221,7 @@ const BroadcastPage = () => {
       }}
     >
       <Container maxWidth="sm">
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+        <Paper elevation={3} sx={{ p: { xs: 2, md: 4 }, borderRadius: 2 }}>
           <Typography variant="h4" component="h1" gutterBottom align="center">
             Driver Broadcast
           </Typography>
@@ -260,11 +260,9 @@ const BroadcastPage = () => {
                 disabled={isProcessing}
                 sx={{
                   py: 1.5,
-                  background: isBroadcasting
-                    ? "linear-gradient(135deg, #ff0000 0%, #cc0000 100%)"
-                    : "linear-gradient(135deg, #ff0000 0%, #0000ff 100%)",
+                  backgroundColor: isBroadcasting ? '#d32f2f' : '#1976d2',
                   "&:hover": {
-                    opacity: 0.9,
+                    backgroundColor: isBroadcasting ? '#b71c1c' : '#1565c0',
                   },
                 }}
               >

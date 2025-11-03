@@ -27,18 +27,15 @@ L.Icon.Default.mergeOptions({
 });
 // End icon fix
 
-// Component to auto-fit map bounds to markers
+// Component to auto-fit map bounds to markers only on initial load
 const AutoFitBounds = ({ buses }) => {
   const map = useMap();
+  const initialFitDoneRef = React.useRef(false);
 
   useEffect(() => {
-    if (buses.length === 0) {
-      map.setView(
-        [DEFAULT_COORDINATES.latitude, DEFAULT_COORDINATES.longitude],
-        13
-      );
-      return;
-    }
+    // Only fit bounds once on initial load when buses first appear
+    if (initialFitDoneRef.current) return;
+    if (buses.length === 0) return;
 
     const bounds = L.latLngBounds(
       buses.map((bus) => [bus.latitude, bus.longitude]).filter(([lat, lng]) =>
@@ -50,6 +47,7 @@ const AutoFitBounds = ({ buses }) => {
 
     if (bounds.isValid() && buses.length > 0) {
       map.fitBounds(bounds, { padding: [50, 50] });
+      initialFitDoneRef.current = true;
     }
   }, [buses, map]);
 
@@ -138,26 +136,27 @@ const MapViewPage = () => {
   );
 
   return (
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
+    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', flexDirection: { xs: 'column', md: 'row' } }}>
       {/* Sidebar */}
       <Paper
         sx={{
-          width: 250,
+          width: { xs: '100%', md: 250 },
           p: 2,
           overflowY: 'auto',
-          height: '100%',
-          position: 'fixed',
-          left: 0,
-          top: 64,
+          height: { xs: 'auto', md: '100%' },
+          maxHeight: { xs: '30vh', md: '100%' },
+          position: { xs: 'relative', md: 'fixed' },
+          left: { md: 0 },
+          top: { md: 64 },
           zIndex: 1000,
-          background: "linear-gradient(135deg, rgba(255, 107, 107, 0.1) 0%, rgba(77, 121, 255, 0.1) 100%)",
+          backgroundColor: "#ffffff",
         }}
         elevation={4}
       >
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <Avatar
             sx={{
-              background: "linear-gradient(135deg, #ff0000 0%, #0000ff 100%)",
+              backgroundColor: "#1976d2",
               color: "white",
             }}
           >
@@ -172,7 +171,7 @@ const MapViewPage = () => {
             sx={{
               p: 2,
               borderRadius: 2,
-              background: "linear-gradient(135deg, rgba(255, 0, 0, 0.1) 0%, rgba(0, 0, 255, 0.1) 100%)",
+              backgroundColor: "#f5f5f5",
               textAlign: 'center',
             }}
           >
@@ -188,7 +187,7 @@ const MapViewPage = () => {
                 sx={{
                   mb: 1,
                   borderRadius: 1,
-                  background: "linear-gradient(135deg, rgba(255, 0, 0, 0.1) 0%, rgba(0, 0, 255, 0.1) 100%)",
+                  backgroundColor: "#f5f5f5",
                   border: '1px solid rgba(0, 0, 0, 0.1)',
                 }}
               >
@@ -222,8 +221,8 @@ const MapViewPage = () => {
       <Box
         sx={{
           flexGrow: 1,
-          height: '100%',
-          marginLeft: '250px',
+          height: { xs: 'calc(70vh)', md: '100%' },
+          marginLeft: { xs: 0, md: '250px' },
         }}
       >
         <MapContainer
