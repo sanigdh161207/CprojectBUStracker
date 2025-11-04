@@ -1,5 +1,4 @@
 # AU Bus - Real-Time Bus Location Tracking System
-
 A real-time bus location tracking web application that allows bus and students drivers to broadcast their GPS locations and displays all active buses on an interactive map.
 
   Usually everyday students share thier live location on whatsapp which is good but the upper hand my app provodies is even if you miss your bus if anyone from nearby bus is broadcasting you can get on to their bus or in such similar  cases
@@ -182,6 +181,18 @@ MIT License - feel free to use this project for your own purposes.
 ## Support
 
 For issues and questions, please open an issue on GitHub.
+
+##project status##
+
+I would say this is still under development , I want to make this a production level project
+
+Upcoming Features:
+
+1.Only students with@anurag.edu.in will be able to share location ,(This feature can be enabled through firebase)
+2.An inforamtion page describing bus numbers and their regular routes
+3.A feature which will show approximately how long it will take to reach college , default coordinates of the college will be updated and then the moving cords will be compared to it
+
+
 
 ## Acknowledgments
 
