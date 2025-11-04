@@ -1,6 +1,8 @@
 # AU Bus - Real-Time Bus Location Tracking System
 
-A real-time bus location tracking web application that allows bus drivers to broadcast their GPS locations and displays all active buses on an interactive map.
+A real-time bus location tracking web application that allows bus and students drivers to broadcast their GPS locations and displays all active buses on an interactive map.
+
+  Usually everyday students share thier live location on whatsapp which is good but the upper hand my app provodies is even if you miss your bus if anyone from nearby bus is broadcasting you can get on to their bus or in such similar  cases
 
 ## Features
 
